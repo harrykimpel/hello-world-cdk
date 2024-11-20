@@ -54,11 +54,11 @@ export class CdkStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_20_X, // Provide any supported Node.js runtime
       handler: "index.handler",
       entry: path.join(__dirname, "../lib/assets/harry-stack.ts"),
+      timeout: cdk.Duration.seconds(10),
       adotInstrumentation: {
         layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(AdotLambdaLayerJavaScriptSdkVersion.LATEST),
         execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
       },
-      timeout: cdk.Duration.seconds(10),
       environment: {
         ADOT_SERVICE_NAME: "hello-world-service",
         AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
