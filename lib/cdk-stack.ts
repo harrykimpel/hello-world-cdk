@@ -10,6 +10,7 @@ import {
   AdotLambdaLayerJavaScriptSdkVersion,
 } from 'aws-cdk-lib/aws-lambda';
 import path = require('path');
+import { LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -51,6 +52,8 @@ export class CdkStack extends cdk.Stack {
 
     // Define the Lambda function resource
     const myFunction = new lambdaNodeJs.NodejsFunction(this, "MyFunction", {
+      // specify the name of the lambda function
+      functionName: "hello-world-service-1",
       runtime: lambda.Runtime.NODEJS_20_X, // Provide any supported Node.js runtime
       handler: "index.handler",
       entry: path.join(__dirname, "../lib/assets/harry-stack.ts"),
@@ -60,11 +63,11 @@ export class CdkStack extends cdk.Stack {
         execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
       },
       environment: {
-        ADOT_SERVICE_NAME: "hello-world-service",
+        ADOT_SERVICE_NAME: "hello-world-service-1",
         AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
         OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp.nr-data.net:4317",
         OTEL_EXPORTER_OTLP_HEADERS: "api-key=NEW_RELIC_LICENSE_KEY",
-        OTEL_SERVICE_NAME: "hello-world-service",
+        OTEL_SERVICE_NAME: "hello-world-service-1",
         OTEL_TRACES_SAMPLER: "always_on",
         OTEL_LOG_LEVEL: "debug",
       },
@@ -78,6 +81,37 @@ export class CdkStack extends cdk.Stack {
     // Define a CloudFormation output for your URL
     new cdk.CfnOutput(this, "myFunctionUrlOutput", {
       value: myFunctionUrl.url,
+    })
+
+    // Define the Lambda function resource
+    const myFunction2 = new lambdaNodeJs.NodejsFunction(this, "MyFunction2", {
+      runtime: lambda.Runtime.NODEJS_20_X, // Provide any supported Node.js runtime
+      functionName: "hello-world-service-2",
+      handler: "index.handler",
+      entry: path.join(__dirname, "../lib/assets/harry-stack.ts"),
+      timeout: cdk.Duration.seconds(10),
+      layers: [
+        LayerVersion.fromLayerVersionArn(this, 'CdkOtelLayer', 'arn:aws:lambda:us-east-1:184161586896:layer:opentelemetry-nodejs-0_11_0:1')
+      ],
+      environment: {
+        ADOT_SERVICE_NAME: "hello-world-service-2",
+        AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
+        OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp.nr-data.net:4317",
+        OTEL_EXPORTER_OTLP_HEADERS: "api-key=NEW_RELIC_LICENSE_KEY",
+        OTEL_SERVICE_NAME: "hello-world-service-2",
+        OTEL_TRACES_SAMPLER: "always_on",
+        OTEL_LOG_LEVEL: "debug",
+      },
+    });
+
+    // Define the Lambda function URL resource
+    const myFunctionUrl2 = myFunction2.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+    });
+
+    // Define a CloudFormation output for your URL
+    new cdk.CfnOutput(this, "myFunctionUrlOutput2", {
+      value: myFunctionUrl2.url,
     })
   }
 }
