@@ -3,6 +3,10 @@ import { Construct } from 'constructs';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 // Import the Lambda module
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as logs from 'aws-cdk-lib/aws-logs';
+//import { CloudWatchLogsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as lambdaNodeJs from 'aws-cdk-lib/aws-lambda-nodejs';
 import {
   AdotLambdaExecWrapper,
@@ -11,6 +15,8 @@ import {
 } from 'aws-cdk-lib/aws-lambda';
 import path = require('path');
 import { LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
+import * as destinations from 'aws-cdk-lib/aws-logs-destinations';
+
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -113,5 +119,62 @@ export class CdkStack extends cdk.Stack {
     new cdk.CfnOutput(this, "myFunctionUrlOutput2", {
       value: myFunctionUrl2.url,
     })
+
+    // Define the Lambda function resource
+    const myFunction3 = new lambdaNodeJs.NodejsFunction(this, "MyFunction3", {
+      runtime: lambda.Runtime.NODEJS_20_X, // Provide any supported Node.js runtime
+      functionName: "hello-world-service-3",
+      handler: "index.handler",
+      entry: path.join(__dirname, "../lib/assets/harry-stack.ts"),
+      timeout: cdk.Duration.seconds(10),
+      layers: [
+        LayerVersion.fromLayerVersionArn(this, 'CdkOtelLayer2', 'arn:aws:lambda:us-east-1:184161586896:layer:opentelemetry-nodejs-0_11_0:1')
+      ],
+      environment: {
+        ADOT_SERVICE_NAME: "hello-world-service-3",
+        AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
+        OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp.nr-data.net:4317",
+        OTEL_EXPORTER_OTLP_HEADERS: "api-key=NEW_RELIC_LICENSE_KEY",
+        OTEL_SERVICE_NAME: "hello-world-service-3",
+        OTEL_TRACES_SAMPLER: "always_on",
+        OTEL_LOG_LEVEL: "debug",
+      },
+    });
+
+    // Define the Lambda function URL resource
+    const myFunctionUrl3 = myFunction3.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+    });
+
+    // Define a CloudFormation output for your URL
+    new cdk.CfnOutput(this, "myFunctionUrlOutput3", {
+      value: myFunctionUrl3.url,
+    })
+
+    const existingOtelLogLambda = lambda.Function.fromFunctionArn(
+      this,
+      'ExistingOtelLogLambda',
+      'arn:aws:lambda:us-east-1:762880000183:function:newrelic-aws-otel-log-ingestion-12e618ec57ab'
+    );
+
+    const existingLogGroup = logs.LogGroup.fromLogGroupName(this, '/aws/lambda/hello-world-service-3', '/aws/lambda/hello-world-service-3');
+
+    new logs.SubscriptionFilter(this, 'MySubscriptionFilter', {
+      logGroup: existingLogGroup,
+      destination: new destinations.LambdaDestination(existingOtelLogLambda),
+      filterPattern: logs.FilterPattern.allEvents(), // Adjust filter pattern as needed
+    });
+
+    // get CloudWatch log group for lambda function and attach it to the lambda function url
+    // const logGroup = logs.LogGroup.fromLogGroupName(this, 'existingOtelLogLambdaLogGroup', '/aws/lambda/newrelic-aws-otel-log-ingestion-12e618ec57ab');
+
+
+    // existingOtelLogLambda.addEventSource(new CloudWatchLogsEventSource(
+    //   'CloudWatchLogsTrigger',
+    //   {
+    //     eventSourceArn: 'arn:aws:logs:us-east-1:762880000183:*/*',
+    //     target: new targets.LambdaFunction(existingOtelLogLambda),
+    //   }
+    // ));
   }
 }
